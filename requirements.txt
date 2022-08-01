@@ -4,3 +4,18 @@ uvicorn>=0.15.0,<0.16.0
 pymongo = 4.0.2
 redis = 4.2.1
 rq = 1.10.1
+
+
+
+arquitectura mvc
+
+estudiar que es la arquitectura mvc 
+dato es muy vieja en la que el backend estaba acoplado al frontend 
+leer 10 articulo 5-10 videos
+
+evolucionar de mvc pasando por variantes llegando a hexagonal 
+
+miercoles
+terraform
+
+arquitectura hexagonal

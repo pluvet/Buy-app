@@ -1,40 +1,121 @@
 version: '3'
 services:
-
-  mongodb:
-    image: mongo
+  zookeeper:
+    image: 'bitnami/zookeeper:3.7.0'
+    restart: always
+    container_name: zookeeper
     ports:
-      - 27016:27017
+      - '2181:2181'
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=123456
-      
+      - ALLOW_ANONYMOUS_LOGIN=yes
     volumes:
-      - mongo-data:/data/db
-  mongo-express:
-    image: mongo-express
-    restart: always # fixes MongoNetworkError when mongodb is not ready when mongo-express starts
+      - './bitnami/zookeeper:/bitnami/zookeeper'
+  
+  kafka:
+    image: 'bitnami/kafka:2.8.0'
+    container_name: kafka
+    restart: always
     ports:
-      - 8081:8081
+      - "9093:9093"
+    expose:
+      - "9093"
     environment:
-      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
-      - ME_CONFIG_MONGODB_ADMINPASSWORD=123456
-      - ME_CONFIG_MONGODB_SERVER=mongodb  
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CREATE_TOPICS="kafka_capstone_event_bus:1:1"
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      - KAFKA_INTER_BROKER_LISTENER_NAME=CLIENT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+    volumes:
+      - './bitnami/kafka:/bitnami/kafka'
 
-  mock-app:
-    image: mockoon-test
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    restart: always
+    container_name: kafdrop
     ports:
-      - 7900:3001
-    command: mockoon-cli start --data ./dat.json
-    
-  bureau-app-try:
+    - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - kafka
+
+  buy-app:
     build: .
     ports:
       - 8500:80
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - KAFKA_TOPIC=shipp
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP=sell
+      - ELASTICSEARCH_HOSTS=elasticsearch:9200
+    depends_on:
+      - kafka
+    command: ["uvicorn", "index:app", "--host", "0.0.0.0", "--port", "80"]
 
+  consumer-app:
+    build: .
+    ports:
+      - 8600:100
+    environment:
+      - KAFKA_TOPIC=shipp
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP=sell
+    depends_on:
+      - buy-app
+    restart: always
+    command: ["python", "consumer.py"]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.0
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.0
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+  
 volumes:
-  mongo-data:
+  elasticsearch-data:
     driver: local
+  
+
+      
+
+
+
+
+
+
+ 
+    
+
+

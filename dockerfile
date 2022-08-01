@@ -1,4 +1,4 @@
-FROM python:3.8.3-alpine
+FROM python:3.8.13-alpine
 
 RUN mkdir -p /app
 
@@ -17,11 +17,10 @@ WORKDIR /app
 
 RUN poetry install --no-root
 
-ENV MONGO_DB_USERNAME=admin \
-    MONGO_DB_PWD=password
-
+RUN pip install elasticsearch["async"]==7.14.0
+# elasticsearch = {extras = ["async"], version = "^8.3.1"}
 COPY ./app /app
 
 WORKDIR /app/bureau
 
-CMD ["uvicorn", "index:app", "--host", "0.0.0.0", "--port", "80"]
+#CMD 

@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
-class Bureau(BaseModel):
+class Buy(BaseModel):
     id_number: str
     name: str
-    lastname: str
+    price: int
+    address: str
